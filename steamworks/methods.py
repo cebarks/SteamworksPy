@@ -206,6 +206,19 @@ STEAMWORKS_METHODS = {
     "Workshop_SuspendDownloads": {"restype": None, "argtypes": [c_bool]},
     "Workshop_SubscribeItem": {"restype": None, "argtypes": [c_uint64]},
     "Workshop_UnsubscribeItem": {"restype": None, "argtypes": [c_uint64]},
+    "Workshop_CreateQueryUGCDetailsRequest": {
+        "restype": c_uint64,
+        "argtypes": [POINTER(c_uint64), c_uint32],
+    },
+    "Workshop_SetQueryCompletedCallback": {
+        "restype": None,
+        "argtypes": [MAKE_CALLBACK(None, structs.SteamUGCQueryCompleted_t)],
+    },
+    "Workshop_SendQueryUGCRequest": {"argtypes": [c_uint64]},
+    "Workshop_GetQueryUGCResult": {
+        "restype": bool,
+        "argtypes": [c_uint64, c_uint32, POINTER(structs.SteamUGCDetails_t)],
+    },
     "MicroTxn_SetAuthorizationResponseCallback": {
         "restype": None,
         "argtypes": [MAKE_CALLBACK(None, structs.MicroTxnAuthorizationResponse_t)],

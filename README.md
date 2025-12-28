@@ -7,6 +7,18 @@ Pre-builds for Windows and Linux here: https://github.com/philippj/SteamworksPy/
 
 Full documentation on getting started is now available here: https://philippj.github.io/SteamworksPy/
 
+## Automated Builds
+
+SteamworksPy now has automated CI/CD! Builds are automatically created for Linux and Windows on every commit using self-hosted GitHub Actions runners with cross-compilation.
+
+**For users:** Pre-built binaries are available on the [Releases page](https://github.com/philippj/SteamworksPy/releases).
+
+**For maintainers setting up CI/CD:**
+- 🚀 **Quick Start:** [docs/QUICKSTART.md](docs/QUICKSTART.md) - Step-by-step setup guide (3-4 hours)
+- 📚 **Reference:** [docs/CI_SETUP.md](docs/CI_SETUP.md) - Detailed documentation and troubleshooting
+
+The setup uses a Podman container with MinGW for Windows cross-compilation, allowing both Linux and Windows builds from a single Linux machine while complying with Valve's SDK licensing requirements.
+
 ## What's New
 Updates since February 1st, 2020
 - Added: GetNumAchievements, GetAchievementName, GetAChievementDisplayAttribute by **aveao**

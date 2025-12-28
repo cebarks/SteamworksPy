@@ -1,0 +1,145 @@
+name: Build SteamworksPy
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+      - '[0-9]*'
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-linux:
+    name: Build Linux (native)
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify SDK mounted
+        run: |
+          if [ ! -d "/sdk/public/steam" ]; then
+            echo "ERROR: SDK not mounted at /sdk"
+            echo "Expected SDK to be mounted from host at /sdk"
+            exit 1
+          fi
+          echo "SDK found at /sdk"
+          ls -lh /sdk/public/steam | head -5
+          ls -lh /sdk/redistributable_bin/linux64/libsteam_api.so
+
+      - name: Symlink SDK to workspace
+        run: |
+          cd library
+          ln -sf /sdk sdk
+          echo "SDK symlinked to library/sdk"
+
+      - name: Build Linux library
+        run: |
+          cd library
+          chmod +x build_linux.sh
+          ./build_linux.sh
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: |
+            redist/linux/SteamworksPy.so
+            redist/linux/libsteam_api.so
+          if-no-files-found: error
+
+  build-windows-cross:
+    name: Build Windows (cross-compile)
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify SDK mounted
+        run: |
+          if [ ! -d "/sdk/public/steam" ]; then
+            echo "ERROR: SDK not mounted at /sdk"
+            echo "Expected SDK to be mounted from host at /sdk"
+            exit 1
+          fi
+          echo "SDK found at /sdk"
+          ls -lh /sdk/public/steam | head -5
+          ls -lh /sdk/redistributable_bin/win64/steam_api64.dll
+          ls -lh /sdk/redistributable_bin/win64/steam_api64.lib
+
+      - name: Symlink SDK to workspace
+        run: |
+          cd library
+          ln -sf /sdk sdk
+          echo "SDK symlinked to library/sdk"
+
+      - name: Build Windows library (MinGW cross-compile)
+        run: |
+          cd library
+          chmod +x build_windows_cross.sh
+          ./build_windows_cross.sh
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: |
+            redist/windows/SteamworksPy64.dll
+            redist/windows/steam_api64.dll
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: [build-linux, build-windows-cross]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-x64
+          path: artifacts/linux
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64
+          path: artifacts/windows
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+
+          gh release create "$VERSION" \
+            --title "SteamworksPy $VERSION" \
+            --notes "Automated release for $VERSION
+
+          ## Binaries
+
+          - **Linux**: \`SteamworksPy.so\` + \`libsteam_api.so\`
+          - **Windows**: \`SteamworksPy64.dll\` + \`steam_api64.dll\`
+
+          Built with automated CI/CD using containerized self-hosted runner.
+
+          🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
+            artifacts/linux/SteamworksPy.so \
+            artifacts/linux/libsteam_api.so \
+            artifacts/windows/SteamworksPy64.dll \
+            artifacts/windows/steam_api64.dll

@@ -15,7 +15,6 @@ class SteamWorkshop(object):
     _RemoteStorageSubscribePublishedFileResult_t = CFUNCTYPE(None, SubscriptionResult)
     _RemoteStorageUnsubscribePublishedFileResult_t = CFUNCTYPE(None, SubscriptionResult)
     _SteamUGCQueryCompleted_t = CFUNCTYPE(None, SteamUGCQueryCompleted_t)
-    _GetAppDependenciesResult_t = CFUNCTYPE(None, GetAppDependenciesResult_t)
     _DownloadItemResult_t = CFUNCTYPE(None, DownloadItemResult_t)
 
     _CreateItemResult = None
@@ -25,7 +24,6 @@ class SteamWorkshop(object):
     _RemoteStorageSubscribePublishedFileResult = None
     _RemoteStorageUnsubscribePublishedFileResult = None
     _SteamUGCQueryCompleted = None
-    _GetAppDependenciesResult = None
     _DownloadItemResult = None
 
     def __init__(self, steam: object):

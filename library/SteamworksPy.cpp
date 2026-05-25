@@ -23,6 +23,7 @@
 #include <iostream>
 #include <string>
 #include <cstdint>
+#include <vector>
 
 //-----------------------------------------------
 // Definitions
@@ -114,12 +115,12 @@ public:
     SteamUGCQueryCompletedCallback_t _pyQueryCompletedCallback;
     DownloadItemResultCallback_t _pyDownloadItemCallback;
 
-    CCallResult <Workshop, CreateItemResult_t> _itemCreatedCallback;
-    CCallResult <Workshop, SubmitItemUpdateResult_t> _itemUpdatedCallback;
-    CCallResult <Workshop, GetAppDependenciesResult_t> _getAppDependenciesCallback;
-    CCallResult <Workshop, RemoteStorageSubscribePublishedFileResult_t> _itemSubscribedCallback;
-    CCallResult <Workshop, RemoteStorageUnsubscribePublishedFileResult_t> _itemUnsubscribedCallback;
-    CCallResult <Workshop, SteamUGCQueryCompleted_t> _queryCompletedCallback;
+    std::vector<CCallResult<Workshop, CreateItemResult_t>*> _createCallResults;
+    std::vector<CCallResult<Workshop, SubmitItemUpdateResult_t>*> _updateCallResults;
+    std::vector<CCallResult<Workshop, GetAppDependenciesResult_t>*> _getAppDepsCallResults;
+    std::vector<CCallResult<Workshop, RemoteStorageSubscribePublishedFileResult_t>*> _subscribeCallResults;
+    std::vector<CCallResult<Workshop, RemoteStorageUnsubscribePublishedFileResult_t>*> _unsubscribeCallResults;
+    std::vector<CCallResult<Workshop, SteamUGCQueryCompleted_t>*> _queryCallResults;
 
     CCallback <Workshop, ItemInstalled_t> _itemInstalledCallback;
     CCallback <Workshop, DownloadItemResult_t> _downloadItemCallback;
@@ -127,6 +128,19 @@ public:
     Workshop() :
         _itemInstalledCallback(this, &Workshop::OnItemInstalled),
         _downloadItemCallback(this, &Workshop::OnDownloadItem) {}
+
+    ~Workshop() {
+        auto cleanup = [](auto& vec) {
+            for (auto* cr : vec) delete cr;
+            vec.clear();
+        };
+        cleanup(_createCallResults);
+        cleanup(_updateCallResults);
+        cleanup(_queryCallResults);
+        cleanup(_getAppDepsCallResults);
+        cleanup(_subscribeCallResults);
+        cleanup(_unsubscribeCallResults);
+    }
 
     void SetItemCreatedCallback(CreateItemResultCallback_t callback) {
         _pyItemCreatedCallback = callback;
@@ -169,34 +183,51 @@ public:
     }
 
     void CreateItem(AppId_t consumerAppId, EWorkshopFileType fileType) {
-        //TODO: Check if fileType is a valid value?
-        SteamAPICall_t createItemCall = SteamUGC()->CreateItem(consumerAppId, fileType);
-        _itemCreatedCallback.Set(createItemCall, this, &Workshop::OnWorkshopItemCreated);
+        CleanupInactive(_createCallResults);
+        SteamAPICall_t call = SteamUGC()->CreateItem(consumerAppId, fileType);
+        auto* cr = new CCallResult<Workshop, CreateItemResult_t>();
+        cr->Set(call, this, &Workshop::OnWorkshopItemCreated);
+        _createCallResults.push_back(cr);
     }
 
     void SubmitItemUpdate(UGCUpdateHandle_t updateHandle, const char *pChangeNote) {
-        SteamAPICall_t submitItemUpdateCall = SteamUGC()->SubmitItemUpdate(updateHandle, pChangeNote);
-        _itemUpdatedCallback.Set(submitItemUpdateCall, this, &Workshop::OnItemUpdateSubmitted);
+        CleanupInactive(_updateCallResults);
+        SteamAPICall_t call = SteamUGC()->SubmitItemUpdate(updateHandle, pChangeNote);
+        auto* cr = new CCallResult<Workshop, SubmitItemUpdateResult_t>();
+        cr->Set(call, this, &Workshop::OnItemUpdateSubmitted);
+        _updateCallResults.push_back(cr);
     }
 
     void GetAppDependencies(PublishedFileId_t publishedFileID) {
-        SteamAPICall_t getAppDependenciesCall = SteamUGC()->GetAppDependencies(publishedFileID);
-        _getAppDependenciesCallback.Set(getAppDependenciesCall, this, &Workshop::OnGetAppDependencies);
+        CleanupInactive(_getAppDepsCallResults);
+        SteamAPICall_t call = SteamUGC()->GetAppDependencies(publishedFileID);
+        auto* cr = new CCallResult<Workshop, GetAppDependenciesResult_t>();
+        cr->Set(call, this, &Workshop::OnGetAppDependencies);
+        _getAppDepsCallResults.push_back(cr);
     }
 
     void SubscribeItem(PublishedFileId_t publishedFileID) {
-        SteamAPICall_t subscribeItemCall = SteamUGC()->SubscribeItem(publishedFileID);
-        _itemSubscribedCallback.Set(subscribeItemCall, this, &Workshop::OnItemSubscribed);
+        CleanupInactive(_subscribeCallResults);
+        SteamAPICall_t call = SteamUGC()->SubscribeItem(publishedFileID);
+        auto* cr = new CCallResult<Workshop, RemoteStorageSubscribePublishedFileResult_t>();
+        cr->Set(call, this, &Workshop::OnItemSubscribed);
+        _subscribeCallResults.push_back(cr);
     }
 
     void UnsubscribeItem(PublishedFileId_t publishedFileID) {
-        SteamAPICall_t unsubscribeItemCall = SteamUGC()->UnsubscribeItem(publishedFileID);
-        _itemUnsubscribedCallback.Set(unsubscribeItemCall, this, &Workshop::OnItemUnsubscribed);
+        CleanupInactive(_unsubscribeCallResults);
+        SteamAPICall_t call = SteamUGC()->UnsubscribeItem(publishedFileID);
+        auto* cr = new CCallResult<Workshop, RemoteStorageUnsubscribePublishedFileResult_t>();
+        cr->Set(call, this, &Workshop::OnItemUnsubscribed);
+        _unsubscribeCallResults.push_back(cr);
     }
 
     void SendQueryRequest(UGCQueryHandle_t queryHandle) {
-        SteamAPICall_t queryRequestCall = SteamUGC()->SendQueryUGCRequest(queryHandle);
-        _queryCompletedCallback.Set(queryRequestCall, this, &Workshop::OnQueryCompleted);
+        CleanupInactive(_queryCallResults);
+        SteamAPICall_t call = SteamUGC()->SendQueryUGCRequest(queryHandle);
+        auto* cr = new CCallResult<Workshop, SteamUGCQueryCompleted_t>();
+        cr->Set(call, this, &Workshop::OnQueryCompleted);
+        _queryCallResults.push_back(cr);
     }
 
     bool DownloadItem(PublishedFileId_t publishedFileID, bool bHighPriority) {
@@ -204,16 +235,31 @@ public:
     }
 
 private:
+    template<typename T>
+    void CleanupInactive(std::vector<CCallResult<Workshop, T>*>& results) {
+        auto it = results.begin();
+        while (it != results.end()) {
+            if (!(*it)->IsActive()) {
+                delete *it;
+                it = results.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     void OnWorkshopItemCreated(CreateItemResult_t *createItemResult, bool bIOFailure) {
         if (_pyItemCreatedCallback != nullptr) {
             _pyItemCreatedCallback(*createItemResult);
         }
+        CleanupInactive(_createCallResults);
     }
 
     void OnItemUpdateSubmitted(SubmitItemUpdateResult_t *submitItemUpdateResult, bool bIOFailure) {
         if (_pyItemUpdatedCallback != nullptr) {
             _pyItemUpdatedCallback(*submitItemUpdateResult);
         }
+        CleanupInactive(_updateCallResults);
     }
 
     void OnItemInstalled(ItemInstalled_t *itemInstalledResult) {
@@ -227,6 +273,7 @@ private:
             SubscriptionResult result{itemSubscribedResult->m_eResult, itemSubscribedResult->m_nPublishedFileId};
             _pyItemSubscribedCallback(result);
         }
+        CleanupInactive(_subscribeCallResults);
     }
 
     void OnItemUnsubscribed(RemoteStorageUnsubscribePublishedFileResult_t *itemUnsubscribedResult, bool bIOFailure) {
@@ -234,18 +281,21 @@ private:
             SubscriptionResult result{itemUnsubscribedResult->m_eResult, itemUnsubscribedResult->m_nPublishedFileId};
             _pyItemUnsubscribedCallback(result);
         }
+        CleanupInactive(_unsubscribeCallResults);
     }
 
     void OnQueryCompleted(SteamUGCQueryCompleted_t *queryCompletedResult, bool bIOFailure) {
         if (_pyQueryCompletedCallback != nullptr) {
             _pyQueryCompletedCallback(*queryCompletedResult);
         }
+        CleanupInactive(_queryCallResults);
     }
 
     void OnGetAppDependencies(GetAppDependenciesResult_t *result, bool bIOFailure) {
         if (_pyGetAppDependenciesCallback != nullptr) {
             _pyGetAppDependenciesCallback(*result);
         }
+        CleanupInactive(_getAppDepsCallResults);
     }
 
     void OnDownloadItem(DownloadItemResult_t *result) {

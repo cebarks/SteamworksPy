@@ -8,6 +8,7 @@ class FindLeaderboardResult_t(Structure):
 
 
 class CreateItemResult_t(Structure):
+    _pack_ = 4
     _fields_ = [
         ("result", c_int),
         ("publishedFileId", c_uint64),
@@ -16,6 +17,7 @@ class CreateItemResult_t(Structure):
 
 
 class SubmitItemUpdateResult_t(Structure):
+    _pack_ = 4
     _fields_ = [
         ("result", c_int),
         ("userNeedsToAcceptWorkshopLegalAgreement", c_bool),
@@ -24,6 +26,7 @@ class SubmitItemUpdateResult_t(Structure):
 
 
 class ItemInstalled_t(Structure):
+    _pack_ = 4
     _fields_ = [("appId", c_uint32), ("publishedFileId", c_uint64)]
 
 
@@ -51,6 +54,7 @@ class SubscriptionResult(Structure):
 
 
 class SteamUGCQueryCompleted_t(Structure):
+    _pack_ = 4
     _fields_ = [
         ("handle", c_uint64),
         ("result", c_int),
@@ -61,6 +65,7 @@ class SteamUGCQueryCompleted_t(Structure):
 
 
 class SteamUGCDetails_t(Structure):
+    _pack_ = 4
     _fields_ = [
         ("publishedFileId", c_uint64),
         ("result", c_int),
@@ -92,10 +97,12 @@ class SteamUGCDetails_t(Structure):
 
 
 class MicroTxnAuthorizationResponse_t(Structure):
+    _pack_ = 4
     _fields_ = [("appId", c_uint32), ("orderId", c_uint64), ("authorized", c_bool)]
 
 
 class GetAppDependenciesResult_t(Structure):
+    _pack_ = 4
     _fields_ = [
         ("result", c_int),
         ("publishedFileId", c_uint64),
@@ -109,6 +116,7 @@ class GetAppDependenciesResult_t(Structure):
 
 
 class DownloadItemResult_t(Structure):
+    _pack_ = 4
     _fields_ = [
         ("appID", c_uint32),
         ("publishedFileId", c_uint64),

@@ -130,16 +130,12 @@ public:
         _downloadItemCallback(this, &Workshop::OnDownloadItem) {}
 
     ~Workshop() {
-        auto cleanup = [](auto& vec) {
-            for (auto* cr : vec) delete cr;
-            vec.clear();
-        };
-        cleanup(_createCallResults);
-        cleanup(_updateCallResults);
-        cleanup(_queryCallResults);
-        cleanup(_getAppDepsCallResults);
-        cleanup(_subscribeCallResults);
-        cleanup(_unsubscribeCallResults);
+        for (auto* cr : _createCallResults) delete cr;
+        for (auto* cr : _updateCallResults) delete cr;
+        for (auto* cr : _queryCallResults) delete cr;
+        for (auto* cr : _getAppDepsCallResults) delete cr;
+        for (auto* cr : _subscribeCallResults) delete cr;
+        for (auto* cr : _unsubscribeCallResults) delete cr;
     }
 
     void SetItemCreatedCallback(CreateItemResultCallback_t callback) {
@@ -1109,7 +1105,7 @@ SW_PY int GetAuthSessionTicket(char* buffer) {
         return 0;
     }
     uint32 size{};
-    SteamUser()->GetAuthSessionTicket(buffer, 1024, &size, nullptr);
+    SteamUser()->GetAuthSessionTicket(buffer, 1024, &size);
     return size;
 }
 

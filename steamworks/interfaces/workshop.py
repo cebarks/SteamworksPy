@@ -24,7 +24,6 @@ class SteamWorkshop(object):
     _RemoteStorageSubscribePublishedFileResult = None
     _RemoteStorageUnsubscribePublishedFileResult = None
     _SteamUGCQueryCompleted = None
-    _GetAppDependenciesResult = None
     _DownloadItemResult = None
 
     def __init__(self, steam: object):
@@ -537,29 +536,30 @@ class SteamWorkshop(object):
         self.steam.Workshop_GetAppDependencies(published_file_id)
 
 
-    def DownloadItem(self, published_file_id: int, high_priority: bool = False,
-                     callback: object = None, override_callback: bool = False) -> bool:
+    def SetDownloadItemCallback(self, callback: object) -> bool:
+        """Set callback for download item completion
+
+        The callback receives a DownloadItemResult_t when any item download completes.
+        NOTE: This is a broadcast callback - it fires for all item downloads regardless
+        of the running application, so check the appID in the callback result.
+
+        :param callback: callable - receives DownloadItemResult_t
+        :return: bool
+        """
+        self._DownloadItemResult = self._DownloadItemResult_t(callback)
+        self.steam.Workshop_SetDownloadItemCallback(self._DownloadItemResult)
+        return True
+
+
+    def DownloadItem(self, published_file_id: int, high_priority: bool = False) -> bool:
         """Initiate or prioritize download of a workshop item
 
         Downloads or updates a workshop item. If high_priority is True, this item will
-        be downloaded before any other items. The function returns immediately, and you
-        should wait for the callback before accessing the item on disk.
-
-        NOTE: The callback will be triggered for all item downloads regardless of the
-        running application, so check the appID in the callback result.
+        be downloaded before any other items. Set a callback via SetDownloadItemCallback
+        before calling this method.
 
         :param published_file_id: int
         :param high_priority: bool - Set to True to pause other downloads and prioritize this one
-        :param callback: callable - receives DownloadItemResult_t when download completes (REQUIRED)
-        :param override_callback: bool
         :return: bool - True if download initiated successfully
         """
-        # Callback is required - set it up internally
-        if callback is None:
-            raise ValueError('callback parameter is required for DownloadItem')
-
-        if override_callback or not self._DownloadItemResult:
-            self._DownloadItemResult = self._DownloadItemResult_t(callback)
-            self.steam.Workshop_SetDownloadItemCallback(self._DownloadItemResult)
-
         return self.steam.Workshop_DownloadItem(published_file_id, high_priority)

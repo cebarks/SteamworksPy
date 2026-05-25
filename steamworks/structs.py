@@ -104,6 +104,9 @@ class GetAppDependenciesResult_t(Structure):
         ("totalNumAppDependencies", c_uint32),
     ]
 
+    def get_app_dependencies_list(self) -> list:
+        return list(self.rgAppIDs[:self.numAppDependencies])
+
 
 class DownloadItemResult_t(Structure):
     _fields_ = [
